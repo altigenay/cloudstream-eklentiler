@@ -1,0 +1,8 @@
+{
+  "name": "Altigenay Eklentileri",
+  "description": "Resmi ve ücretsiz kaynaklar için CloudStream eklentileri",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://raw.githubusercontent.com/altigenay/cloudstream-eklentiler/builds/plugins.json"
+  ]
+}
