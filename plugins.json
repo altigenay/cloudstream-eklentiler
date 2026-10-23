@@ -1,0 +1,88 @@
+[
+    {
+        "iconUrl": "https://archive.org/images/glogo.png",
+        "fileHash": "sha256-ce567dd2eba13970420c9cbb4ae320161f65e09f1bd4f38d86496726a6890ccf",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/altigenay/cloudstream-eklentiler",
+        "fileSize": 13010,
+        "status": 1,
+        "language": "en",
+        "authors": [
+            "altigenay"
+        ],
+        "tvTypes": [
+            "Movie",
+            "Documentary"
+        ],
+        "version": 1,
+        "internalName": "ArsivSinema",
+        "description": "TEST: Internet Archive'deki kamuya a\u00e7\u0131k / telifi d\u00fc\u015fm\u00fc\u015f filmler \u2014 oynat\u0131c\u0131 ve eklenti motoru testi i\u00e7in yasal kaynak",
+        "url": "https://raw.githubusercontent.com/altigenay/cloudstream-eklentiler/builds/ArsivSinema.cs3",
+        "name": "ArsivSinema"
+    },
+    {
+        "iconUrl": "https://iatv.tmgrup.com.tr/site/v1/i/atv_logo165x60.jpg",
+        "fileHash": "sha256-729fc884828d4b8792b31c6c197b44771c1a6343b868985a588d560993641de4",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/altigenay/cloudstream-eklentiler",
+        "fileSize": 16499,
+        "status": 1,
+        "language": "tr",
+        "authors": [
+            "altigenay"
+        ],
+        "tvTypes": [
+            "TvSeries",
+            "Movie"
+        ],
+        "version": 4,
+        "internalName": "AtvDizi",
+        "description": "ATV resm\u00ee site \u2014 yay\u0131nc\u0131n\u0131n kendi dizilerinin \u00fccretsiz b\u00f6l\u00fcmleri (katalog, son b\u00f6l\u00fcmler, b\u00f6l\u00fcm listesi, do\u011frudan MP4)",
+        "url": "https://raw.githubusercontent.com/altigenay/cloudstream-eklentiler/builds/AtvDizi.cs3",
+        "name": "AtvDizi"
+    },
+    {
+        "iconUrl": "https://cms-tabii-public-image.tabii.com/int/43689.png",
+        "fileHash": "sha256-65dad0e44c93842371261e617dfdb8172deef699f339c5e2c458f2ae535a8056",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/altigenay/cloudstream-eklentiler",
+        "fileSize": 18498,
+        "status": 1,
+        "language": "tr",
+        "authors": [
+            "altigenay"
+        ],
+        "tvTypes": [
+            "TvSeries",
+            "Movie",
+            "Documentary"
+        ],
+        "version": 1,
+        "internalName": "Tabii",
+        "description": "TEST: tabii (trtizle) \u2014 resmi \u00fccretsiz platform. Katalog/detay/b\u00f6l\u00fcm/dil/altyaz\u0131; ak\u0131\u015f DASH (Widevine DRM, oynatma deste\u011fi uygulamaya ba\u011fl\u0131)",
+        "url": "https://raw.githubusercontent.com/altigenay/cloudstream-eklentiler/builds/Tabii.cs3",
+        "name": "Tabii"
+    },
+    {
+        "iconUrl": "https://www.trtbelgesel.com.tr/favicon.ico",
+        "fileHash": "sha256-1cbfff083075a941b670001f91e44f2c5c43aee4290c4f5794620805d4e7bdfe",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/altigenay/cloudstream-eklentiler",
+        "fileSize": 15548,
+        "status": 1,
+        "language": "tr",
+        "authors": [
+            "altigenay"
+        ],
+        "tvTypes": [
+            "TvSeries",
+            "Documentary",
+            "Live"
+        ],
+        "version": 1,
+        "internalName": "TrtBelgesel",
+        "description": "TRT Belgesel: resmi sitedeki programlar ve b\u00f6l\u00fcmler (TRT'nin resmi YouTube videolar\u0131) ile resmi canl\u0131 yay\u0131n",
+        "url": "https://raw.githubusercontent.com/altigenay/cloudstream-eklentiler/builds/TrtBelgesel.cs3",
+        "name": "TrtBelgesel"
+    }
+]
