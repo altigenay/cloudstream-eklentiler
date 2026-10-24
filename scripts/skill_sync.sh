@@ -34,7 +34,14 @@ case "$cmd" in
     git push origin HEAD
     ;;
   audit)
-    python3 scripts/verify_repo_integrity.py --all "$@"
+    if compgen -G "plugins.json" >/dev/null || compgen -G "catalogs/**/plugins.json" >/dev/null; then
+      python3 scripts/verify_repo_integrity.py --all "$@"
+    else
+      # This repository publishes packages through CI on the `builds` branch,
+      # so audit the public repo.json -> catalog -> package chain instead.
+      url="$(python3 -c 'import sys; sys.path.insert(0, "scripts"); import csconfig; print(csconfig.repo_json_url(csconfig.SKILL_ROOT))')"
+      node scripts/verify_remote_repo.mjs "$url"
+    fi
     ;;
   status)
     git status --short --branch
