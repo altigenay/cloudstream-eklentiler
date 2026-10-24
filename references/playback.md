@@ -1,0 +1,48 @@
+# Playback, trailers, and subtitles
+
+## Extraction ladder
+
+Resolve each source using the narrowest observed mechanism:
+
+1. Emit a real, accessible HLS **master** `.m3u8` (`ExtractorLinkType.M3U8`) as exactly one source per server/audio variant when the site provides one; its resolutions belong exclusively in the CloudStream player **Parçalar / Video Tracks** selector. Never expand a master into per-resolution Sources (including through `M3u8Helper.generateM3u8`). If a site supplies only separate fixed-resolution playlists, apply the strict [HLS master handling](hls-master.md) fallback, never multiple resolution copies per server. Fall back to `.mp4` (`ExtractorLinkType.VIDEO`) with its real MIME/type, never spoofed HLS, only when no playable HLS stream exists.
+2. Use `loadExtractor` for a supported host iframe.
+3. Add a focused extractor for an unsupported player host.
+4. Reproduce the site's AJAX/API request when the player is generated dynamically.
+
+For ready-to-use implementations, check the builder's bundled [Unified Extractor Library](../extractors/INDEX.md) containing 50+ global extractors (OCE) and 36+ Turkish host extractors (CloseLoad, RapidVid, VidRame, FirePlayer, Vidmixi, Vk, Dzen, etc.).
+
+Do not emit an iframe page, HTML endpoint, expired token, empty URL, or trailer as a video link. These commonly surface as CloudStream error 2004 or “bağlantı bulunamadı”. A 200 HTML response is not playable-media evidence. All emitted streams must specify target player `Referer` and `User-Agent` headers.
+
+## Headers and session state
+
+Preserve required `Referer`, `Origin`, user agent, and session cookies across the exact request chain. Do not hard-code personal cookies or device tokens. If access requires a user session, keep it on-device and document the prerequisite.
+
+Resolve relative URLs against the response URL or an effective `<base>` tag, not blindly against the original home page.
+
+## Multiple sources and extractor priority
+
+Keep all observed **distinct servers and audio-language variants**, not multiple resolution copies of the same server. Label sources by server and language; qualities are selected in **Parçalar**, not Source labels. Catch a failure per server so one dead mirror does not suppress working mirrors. Use bounded concurrency only for independent requests; preserve order where a token or cookie is produced sequentially.
+
+Sort fast direct CDN extractors (e.g. Vidmoly 1080p, Morencius HLS, Fastly) at the top of the emission queue. Slow, rate-limited, or P2P/iframe hosts (e.g. OKRU, Sibnet) should be emitted secondarily. Emitting slow hosts first causes CloudStream's internal player to stall during initial buffering.
+
+For live IPTV streams with freeze/stalling issues on Android/TV devices, advise users to configure CloudStream internal player buffer: Video arabellek boyutu ~70MB, uzunluğu ~3dk, and disk cache set to High/Very High to eliminate playback interruptions without external players.
+
+## Custom player encryption and keystream ciphers (e.g. BingeBang, SPA players)
+
+When sites encrypt player responses with dynamic scripts and CTR-like block ciphers:
+- **Derive keys precisely**: Verify salt, dynamic ticket extraction (e.g. XOR script unpacking), and hash algorithm (SHA256).
+- **Counter starting index**: Custom streaming CTR engines frequently start the block counter at `0` (not `1`). Starting at 1 corrupts the first 32 bytes and leads to invalid JSON / silent playback failures ("bağlantı bulunamadı").
+- **Parallel multi-server resolution**: When multiple servers are available (e.g. Aldebaran, Rigel, Sirius 4K, etc.), query them concurrently with `amap` or async coroutines to avoid multi-second sequential round-trips.
+- **Dual subtitles**: Combine direct server track/VTT subtitles from the resolve API with external subtitle indexers (OpenSubtitles / stremio) using the media's IMDb ID.
+
+## Trailers
+
+Put YouTube or other trailer URLs in `addTrailer`. Exclude them from player candidates and from `loadLinks`. A trailer iframe proves only trailer availability.
+
+## Subtitles
+
+Inspect player JSON, track tags, manifests, and player API responses. Emit every observed subtitle with a human-readable language/label and an absolute URL. Resolve escaped JSON URLs before callback. Do not report subtitle support merely because a player UI has a subtitle button.
+
+## Playback evidence
+
+For HTTP smoke checks, record final URL, status, content type, and whether the body is a manifest or media response. For CloudStream verification, record provider, item, selected source, outcome, and timestamp in `status.json`. Only the app playback attempt can set `playbackVerified` to true.

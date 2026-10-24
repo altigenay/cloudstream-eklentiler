@@ -1,0 +1,185 @@
+# Proven repository patterns
+
+These patterns were extracted from the current TurkSinema and TurkSpor source trees. They are decision aids, not proof that every provider in either repository is currently reachable. Recheck the target source and run the repository's build/tests before reuse.
+
+## Choose an architecture
+
+| Need | Proven pattern | Representative implementation |
+|---|---|---|
+| One website, one provider | Self-contained `MainAPI` plus focused extractors | TurkSinema: HDFilmizleBest, NetFilmizle, Sinemakolik |
+| Site-specific source chooser/AJAX | Store player identifiers in load data and reproduce the POST in `loadLinks` | TurkSinema: JetFilmizle |
+| Authorized application API | Typed response models, configuration bootstrap, runtime resolution | TurkSinema: ClipBox, InatBox, CNCVerse |
+| Many upstream providers in one package | Delegate plugins from one aggregate entry and forward lifecycle | TurkSinema aggregate plugin |
+| One upstream plugin registers several providers, but one `.cs3` is required | Snapshot `APIHolder.allProviders`, load delegate, retain the selected provider, attach common UI | TurkSinema generated entry wrappers |
+| Several sites share channel/player behavior | `SourceSpec` plus shared catalogue, domain, playback, branding, and settings components | TurkSpor shared modules |
+| Large remote channel catalogue | Remote JSON with schema validation, short cache, stable IDs, and a minimal bundled fallback | TurkSpor NetVGold |
+| Country-heavy channel directory | Persist a country filter and expose it through provider settings | TurkSpor DaddyLive and NTVStream |
+| Provider supplies several mirrors | Resolve mirrors independently, discard failed manifests, label and emit every working source | TurkSpor NetVGold and shared `SportsProvider` |
+| TMDb-indexed multi-host streaming portal | Direct TMDb API catalog + multi-host HLS resolvers (VixSrc, VidLink, Videasy) | TurkSinema: Mapple, BingeBang |
+
+## TurkSinema methods
+
+### Detail-first web provider
+
+The useful web-provider shape separates four concerns:
+
+1. Home/search selectors return canonical detail URLs and clean titles.
+2. `load` classifies film versus series from real episode evidence and stores episode-specific playback data.
+3. Trailer discovery calls `addTrailer` only.
+4. `loadLinks` handles direct media, supported hosts, custom extractors, and site-specific AJAX without returning HTML pages as video.
+
+HDFilmizleBest, NetFilmizle, and Sinemakolik demonstrate broad iframe/data-attribute discovery plus direct HLS/DASH/video handling. JetFilmizle demonstrates a stronger source-button contract: retain content ID, source index, player type, season, and episode; send the observed POST with its required Origin/Referer/User-Agent; then dispatch the returned iframe to the correct extractor. Use this only when the target request shape matches.
+
+### Custom extractor boundary
+
+Create an `ExtractorApi` when a host has a reusable player protocol independent of one catalogue site. Keep catalogue parsing in `MainAPI` and player parsing in the extractor. TurkSinema examples include host-specific JSON, packed scripts, track/subtitle extraction, and a second request that exchanges a page ID for media.
+
+Do not create a generic extractor from one coincidental regex. Confirm at least two player examples or keep the logic private to the provider until the contract is stable.
+
+### API/application provider
+
+ClipBox, InatBox, and CNCVerse show that application sources are not HTML providers. Preserve typed models and the actual configuration/content request sequence. Separate reusable crypto/config parsing from catalogue presentation. Resolve short-lived links at playback time. Never store a user's account token, device identifier, or captured personal cookie in source.
+
+### TMDb aggregator and multi-host streaming portal
+
+Portals like Mapple and BingeBang serve rich frontend web catalogs indexed directly by TMDb ID, backed by external streaming host resolvers (VixSrc, VidLink, Videasy):
+
+1. **Catalogue & Search**: Query TMDb endpoints (`trending`, `discover`, `search/multi`, `movie/{id}`, `tv/{id}`) directly for high-fidelity titles, posters, backdrops, year, cast, and trailers via `addTrailer`.
+2. **VixSrc Protocol**:
+   - Query `/api/movie/{tmdbId}` or `/api/tv/{tmdbId}/{season}/{episode}` with proper `Referer: https://vixsrc.to/` to retrieve dynamic embed route (`/embed/{id}?token=...`).
+   - Fetch embed page HTML, extract `token`, `expires`, and playlist base URL.
+   - Request master playlist: `"$baseUrl&token=$token&expires=$expires&h=1&lang=en"`.
+   - Preserve the verified master playlist as **one** `ExtractorLinkType.M3U8` Source for this host/audio variant; `#EXT-X-STREAM-INF` resolutions must appear only in the player's **Parçalar / Video Tracks** menu. Do not emit 1080p/720p/480p as separate Sources (see `hls-master.md`).
+   - Parse `#EXT-X-MEDIA:TYPE=SUBTITLES` to emit multi-language subtitles.
+3. **Fallback hosts**: Forward embed requests to secondary extractors (VidLink, Videasy) to provide redundant streaming paths.
+
+### Aggregate and individual packages
+
+The TurkSinema aggregate forwards plugin filename, `load`, and reverse-order `beforeUnload` to delegates. Individual modules use a wrapper entry so an upstream plugin can be isolated and common domain/support UI attached.
+
+Use an aggregate only when the user wants one installation containing many providers. Use individual packages for independent enable/disable and updates. Do not pretend duplicated catalogue metadata creates real independent `.cs3` files; each package must have one active `@CloudstreamPlugin` entry and its own build output.
+
+### Domain update UI
+
+Persist only a normalized HTTPS origin. Candidate order can include a signed/maintained manifest, last-known-good origin, provider-advertised canonical/redirect target, and current source URL. A response code alone is insufficient: validate provider-specific title, catalogue, or API markers before replacing the last-known-good value. A manual domain must be validated and rolled back on failure.
+
+## TurkSpor methods
+
+### Spec-driven rotating domains
+
+`SourceSpec`, `Channels`, and `DomainResolver` separate host-family rules from parsing. The resolver uses a mutex and time-based cache, limits candidate attempts, validates HTTPS and allowed host patterns, follows provider-owned announcements, and updates `lastGood` only when semantic markers and a non-empty channel list pass.
+
+Numeric domain increments are a last candidate source and apply only to families proven to use that convention. Never increment arbitrary domains.
+
+### Stable catalogue, late playback resolution
+
+Search and home cards use a stable synthetic URL containing the channel ID. `load` re-resolves that ID against the current catalogue. `loadLinks` resolves current player/media URLs only when playback begins. This prevents expiring stream URLs from becoming permanent card data.
+
+Keep channels grouped by meaningful categories and deduplicate by stable ID while merging their player mirrors. A grouped provider such as AslanTV is a product choice; do not generalize it when the user asks for separate channels or packages.
+
+### Player strategy families
+
+The shared sports provider demonstrates explicit player modes rather than one giant fallback regex:
+
+- WordPress-style channel page → player data attribute → embed → session/API exchange.
+- Royal-style page → advertised domain endpoint → JSON base URL plus channel ID.
+- Direct/inter-style catalogue → already validated HTTPS stream.
+- Next.js-style page → parse serialized application state → resolve embed or stream endpoint.
+
+Add a mode only after observing its full request chain. Bound page size, identifier length, host/scheme, number of candidates, and decode work. Preserve coroutine cancellation while isolating ordinary mirror failures.
+
+### HLS quality and audio
+
+Fetch a candidate playlist before labeling it successful. If it is a master playlist, inspect its variants and relative URIs for verification, then emit **only its master URL** as one `ExtractorLinkType.M3U8` for each server/audio variant; never emit quality-sorted variant links as separate Sources. This also preserves `EXT-X-MEDIA` audio renditions. Use `Parçalar / Video Tracks` for resolution selection.
+
+### Multi-source and fallback catalogues
+
+NetVGold demonstrates independent source probing with `supervisorScope`, bounded timeouts, per-source labels, and manifest validation. Remote catalogues should have a small validated schema and stable IDs. A bundled fallback is for catalogue availability, not permission to hard-code stale or unrelated streams; keep it minimal and revalidate it.
+
+### Settings, filters, and artwork
+
+Provider settings can display last check status, force refresh, accept a validated manual domain, and persist country choices. Do not expose internal endpoint lists unnecessarily. Status text must distinguish changed, unchanged, and failed.
+
+For channel-heavy sources, use original logos when reliable. TurkSpor's artwork layer downloads with strict timeouts, limits concurrency, caches rendered cards, uses an atomic temporary file, and falls back to readable text. Never block the main thread while preparing art.
+
+Remote channel rules can hide or remap known bad entries without rebuilding, but must be size-limited, cached, schema-checked, and fail closed to the last usable state.
+
+## Modern architecture patterns (TurkSinema & WioSinema)
+
+### Dynamic domain auto-increment engine (+1 fallback & storage)
+
+When target platforms cycle numeric domains under domain blocks (e.g. `dizipal1581.com`, `dizipal2132.com`), hardcoded domain updates fail quickly. The auto-increment engine ensures resilience:
+
+1. **Persistent storage**: Query `CloudStreamApp.getKey(KEY_DOMAIN)` or `SharedPreferences` first. Fall back to hardcoded seeds only on a cold install.
+2. **Fast sequential probe (+1 to +5)**: On network error, 404, or redirect block, extract the numeric suffix via regex (`r"(\d+)"`), iterate sequentially (`n+1`, `n+2`, `n+3`), and dispatch fast lightweight HEAD/GET checks against a lightweight endpoint (`/search` or homepage).
+3. **Validation & cache write**: Verify characteristic HTML/JSON tokens before accepting the new domain. Immediately persist the validated domain via `CloudStreamApp.setKey` so subsequent requests and future app restarts use the working address without probing overhead.
+4. **In-memory failover**: Update `mainUrl` dynamically so current `search()`, `load()`, and `loadLinks()` continue without throwing user-visible connection failures.
+
+### Direct TMDB aggregator & TV box concurrency throttling
+
+When combining dozens of scrapers under one meta-catalog (e.g. WioSinema / StreamAggregator):
+
+1. **Dual provider tiering**: Separate providers into:
+   - *Direct TMDB providers*: Accept `LinkData` JSON directly into `loadLinks` using TMDB/IMDB IDs (e.g. CineStream, CineCat, ClipBox) without title search latency.
+   - *Scraper providers*: Require fuzzy title search (`search()`), distance/levenshtein matching, `load()`, and `loadLinks()`.
+2. **TV Box mode & memory throttling**: TV boxes and low-spec Android sticks easily crash or drop frames due to thread exhaustion or out-of-memory errors. Implement a togglable TV Box mode:
+   - Dynamic `Semaphore`: Throttles concurrent scrapers to 4 tasks (desktop/mobile defaults to 12).
+   - Reduced link limit (e.g. cap at 15 links vs 50) and shortened HTTP timeouts (7s vs 12s).
+3. **Bulk settings management**: When storing active provider sets, use an `isBulkUpdating` flag to batch SharedPreferences writes and prevent repetitive UI re-renders.
+
+### Fast CDN extractor sorting & priority queue
+
+Slow or P2P/iframe video hosts (e.g. OKRU, Sibnet) cause CloudStream to freeze or stall on initial playback buffering.
+
+1. **Priority sorting**: Sort fast direct CDN and HLS streams (e.g. Vidmoly 1080p, Morencius 1080p HLS, Fastly direct) ahead of slower hosts before emitting to `callback(ExtractorLink)`.
+2. **Direct chapter UUID mapping**: In API-driven platforms (e.g. DiziAsya), query chapter/episode details directly by chapter UUID (`$apiUrl/chapters/$id`) rather than scraping multi-nested index arrays.
+3. **Draft schedule filtering**: Always compare `publishDate` with `System.currentTimeMillis()`. Filter out unreleased schedule drafts that return 404 or empty stream links.
+
+### Broadcaster signed token & geoblock bypass
+
+Official broadcaster sites (e.g. DMAX, Discovery) protect live and VOD streams with geographic IP restrictions and expiring tokens:
+
+1. **Signed publisher redirect**: Route requests through authorized upstream publisher redirect endpoints (e.g. `PublisherId=27` signed redirect) to resolve authenticated master playlists.
+2. **Carousel & tab dynamic scraping**: Parse homepage sections from live DOM attributes (e.g. carousel data, tab anchors) rather than hardcoded category slugs that break when seasonal lineups change.
+
+### BottomSheet touch interception & scroll protection
+
+In Android TV / mobile dialogs containing lengthy scrollable lists (such as provider pickers):
+
+1. **Disable sheet drag**: Standard `ScrollView` does not implement `NestedScrollingChild`. Swiping down to scroll the list triggers `BottomSheetBehavior` touch interception, dismissing the dialog prematurely.
+2. **Resolution**:
+   - Wrap the layout inside `androidx.core.widget.NestedScrollView`.
+   - Set `dialog.behavior.apply { state = BottomSheetBehavior.STATE_EXPANDED; skipCollapsed = true; isDraggable = false }`.
+   - When `isDraggable = false`, touch gestures are delegated entirely to the scroll view, completely eliminating accidental dialog dismissals.
+
+## Advanced playback and extraction patterns (Pattern Memory)
+
+- **Chunked HLS Master:** Emit exactly one verified master M3U8 per server/audio variant (`ExtractorLinkType.M3U8`); its qualities are selectable as player tracks under **Parçalar**, not emitted as multiple Sources.
+- **Parallel Server Resolution (`amap`):** Multi-server sources should resolve concurrently rather than sequentially to keep link load times under 2 seconds.
+- **Inline Script XOR Deobfuscation:** When stream tickets or dynamic tokens are masked in parallel integer arrays, reconstruct via `(d[i] xor k[i % k.size]).toChar()`.
+- **Custom CTR Stream Ciphers:** When sources derive key streams from `SHA256(salt + ticket)`, verify the initial counter index (e.g. 0-based indexing) to avoid keystream desynchronization.
+- **Dual-Period Sports Extractor:** Match video sources segmented across multiple halves/periods should expose each period cleanly as distinct stream options.
+- **Repository Release Integrity Gate:** Every publication to a `plugins.json` catalog must pass strict byte-size and SHA-256 verification using `verify_repo_integrity.py --fix` before push to prevent silent download failures in CloudStream.
+
+## Known repository-specific behavior not to turn into a universal rule
+
+
+- Daily support notices, author contact labels, WARP buttons, and aggregate-vs-individual packaging are product choices, not requirements for every plugin.
+- Obfuscated or encrypted bootstrap data is not automatically safer and must not contain credentials. Use it only when the authorized source requires non-public endpoint presentation.
+- `HTTP 200`, a successful Gradle build, or a parsed channel count does not prove CloudStream playback.
+- Existing duplicated filters, broad catch blocks, stale fallback URLs, or response-code-only domain checks are implementation debt, not patterns to copy.
+
+## Local reference roots
+
+When available in the owner's workspace, inspect current code rather than relying on this summary:
+
+- TurkSinema: `~/cloudstream-work/TurkSinema` (historical reference only)
+- TurkSpor: `~/cloudstream-work/TurkSpor` (historical reference only)
+
+Run the scanner before a broad repository comparison:
+
+```powershell
+python scripts/scan_provider_patterns.py `
+  ~/cloudstream-work/TurkSinema `
+  ~/cloudstream-work/TurkSpor
+```
