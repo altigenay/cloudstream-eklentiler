@@ -9,4 +9,6 @@
 .externalNativeBuild
 .cxx
 local.properties
-.vscode
+.vscodestudio-jobs/
+__pycache__/
+*.pyc

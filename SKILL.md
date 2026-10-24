@@ -7,7 +7,7 @@ description: Create, repair, test, and package CloudStream .cs3 providers from w
 
 Produce a real provider, not only a catalog scraper. A finished movie/series provider must cover catalog, search, detail metadata, episodes when present, trailers in CloudStream's trailer field, every observed playback source, and subtitles. A live provider must expose real channels and resolve playable streams at playback time.
 
-Use deterministic discovery and packaging from this skill checkout. If `turkstream_studio/workflow.py` exists anywhere on the machine, use it; on this Linux machine it is not installed, so author the provider in the checkout and package it with the repository's Gradle wrapper.
+Use deterministic discovery and packaging from `turkstream_studio/` in this checkout (local implementation, standard library only). Default job output is `./studio-jobs`. Read [turkstream_studio/README.md](turkstream_studio/README.md) before the first job.
 
 ## This machine (Linux)
 
@@ -18,6 +18,7 @@ Use deterministic discovery and packaging from this skill checkout. If `turkstre
 - `main` is the source branch. GitHub Actions in `.github/workflows/build.yml` compiles on every push to `main` and publishes packages to the `builds` branch; `repo.json` on `main` points at that `builds` catalog.
 - Local config for the helper scripts is `scripts/csconfig.py`: repositories default to this checkout, output defaults to the checkout root. Override with `CLOUDSTREAM_REPOS`, `CLOUDSTREAM_OUTPUT`, `CLOUDSTREAM_BRANCH`.
 - Update the skill itself with `git pull --ff-only` in that directory (a timer does this automatically). Local changes are pushed back with `git push`.
+- `docs/cloudstream/` is a snapshot of the official CloudStream developer docs (recloudstream/csdocs). `docs/local-notes.md` merges those rules with this repository's own. Search both plus the skill references with `python -m turkstream_studio.workflow docs "<query>"`.
 - Never push to `Wiojelt/*`; those are the original author's repositories.
 
 ## Route the task
@@ -34,12 +35,12 @@ Use deterministic discovery and packaging from this skill checkout. If `turkstre
 ## Core workflow
 
 1. Run `python -m turkstream_studio.workflow prepare URL OUTPUT --kind movie` or `--kind live`. Resume an existing job; never regenerate over edited Kotlin.
-2. Read `review.json` first. Show the discovered categories and representative cards. Ask only about genuinely ambiguous nodes. Save each decision as `media`, `text`, or `ignore`, then run `python -m turkstream_studio.workflow approve JOB`.
+2. Read `review.json` first. Show the discovered categories and representative cards. Ask only about genuinely ambiguous nodes. Set each decision as `media`, `text`, or `ignore`, then run `python -m turkstream_studio.workflow approve JOB`. The suggested role in `review.json` is not binding; nothing is included until `approve` writes `decisions.json`.
 3. Inspect one representative movie and, when the site advertises series, one representative series through their detail and player requests. A populated home page is not completion evidence.
 4. Select the closest proven pattern by request shape, not by site appearance or provider name. Implement the observed request chain in Kotlin. Preserve source labels, audio languages, subtitles, referer/origin headers, and required cookies. Keep trailer URLs out of `loadLinks`.
-5. Package with `./gradlew <PluginName>:make` (or `python -m turkstream_studio.workflow build JOB OUTPUT` when the studio is available), then run `python scripts/audit_job.py JOB`. Resolve every reported required failure before delivery.
+5. Package with `python -m turkstream_studio.workflow build JOB` (it runs `./gradlew <PluginName>:make`, writes `status.json`, and copies the `.cs3` plus source ZIP into the job), then run `python scripts/audit_job.py JOB`. Resolve every reported required failure before delivery.
 6. Verify one representative item for each implemented media shape. **Mandatory HLS gate:** confirm one accessible master M3U8 per server/audio variant in Sources; quality variants only in the player's Parçalar/Video Tracks; reject duplicate 1080p/720p Sources. See `references/hls-master.md` and `references/verification-and-release.md`. Build success proves packaging only. Set `playbackVerified` true only after a real CloudStream playback attempt succeeds.
-7. Prior to commit/push to ANY repository (`builds` branch), run `python scripts/verify_repo_integrity.py <repo_dir> --fix`, then run it again without `--fix`. After pushing, run `node scripts/verify_remote_repo.mjs <public-repo.json-URL>` to check the full public install chain. Deliver the `.cs3`, matching source ZIP, and a compact verified/pending report. Commit message must be completely blank (`git commit --allow-empty-message -m "  "`).
+7. Before commit/push, audit locally where a `plugins.json` exists (`python scripts/verify_repo_integrity.py <repo_dir> --fix`, then again without `--fix`). This repository publishes through CI, so after pushing run `node scripts/verify_remote_repo.mjs https://raw.githubusercontent.com/altigenay/cloudstream-eklentiler/main/repo.json` to check the full public install chain. Deliver the `.cs3`, matching source ZIP, and a compact verified/pending report. Use a short Turkish commit message that names the provider and version.
 8. For repository maintenance run `python scripts/auto_heal_all_repos.py --fix --push`. It targets the repositories from `scripts/csconfig.py` (this checkout by default), audits live downloadable packages, corrects `fileSize`, `fileHash`, and `version` mismatches, bumps cache buster timestamps in `repo.json`, and pushes fixes so users never encounter download errors.
 
 ## Invariants
