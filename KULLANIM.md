@@ -237,10 +237,31 @@ Terminalde bu klasörde OpenCode'u (ya da OpenChamber'ı) aç ve şöyle yaz:
 
 ---
 
+## ⚡ Tek komutla: `eklenti-yap`
+
+Bütün adımları (kontrol → iskelet → kodu yazma → derleme → yayınlama → doğrulama) tek komut yapar:
+
+```bash
+eklenti-yap https://www.kanald.com.tr/diziler KanalD "Diziler; videolar Kanal D'nin resmi YouTube kanalından"
+```
+
+- 1. parametre: sitenin adresi, 2. parametre: eklenti adı (büyük harfle başlar, sadece harf/rakam), 3. parametre (isteğe bağlı): ek açıklama.
+- Asıl kodu OpenCode **cloudstream-eklenti** becerisiyle yazar; derleme hatası olursa 3 kez düzeltmeyi dener.
+- Alan adı ya da sayfa izinsiz film/dizi sitesine benziyorsa, ya da robots.txt yasaklıyorsa **durur**.
+- Sadece yerelde denemek için: `EKLENTI_PUSH=0 eklenti-yap …` (GitHub'a göndermez).
+- Modeli seçmek için: `EKLENTI_MODEL=saglayici/model eklenti-yap …`
+- Var olan bir eklentiyi düzeltmek için aynı komutu sorunu yazarak çalıştır: `eklenti-yap <adres> KanalD "bölüm listesi boş geliyor"`
+- Komutun dosyası: `scripts/eklenti-yap.sh` (laptopta `~/.local/bin/eklenti-yap` olarak kurulu).
+
+Script derlemeyi ve yayını doğrular; **oynatmayı telefonda sen denemelisin.**
+
+---
+
 ## 10. Hızlı başvuru
 
 | Ne yapacağım? | Komut |
 |---|---|
+| Tek komutla eklenti | `eklenti-yap <adres> <Ad> "açıklama"` |
 | Güncel hali al | `git pull` |
 | Derle | `./gradlew EklentiAdi:make` |
 | Hepsini derle | `./gradlew make` |
