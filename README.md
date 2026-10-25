@@ -26,6 +26,8 @@ Bu depo aynı zamanda `cloudstream-builder` becerisinin kurulu olduğu yerdir:
 - Yardımcı betiklerin yolları `scripts/csconfig.py` içindedir (`CLOUDSTREAM_REPOS`, `CLOUDSTREAM_OUTPUT`, `CLOUDSTREAM_BRANCH` ile değiştirilebilir).
 
 ## Geliştirme
+Adım adım anlatım: [KULLANIM.md](KULLANIM.md)
+
 - Yeni eklenti: kök dizinde `EklentiAdi/` klasörü (`build.gradle.kts` + `src/main/kotlin/...`); `settings.gradle.kts` otomatik ekler.
 - Yerel derleme: `./gradlew EklentiAdi:make` → `EklentiAdi/build/EklentiAdi.cs3` (Android SDK yolu `local.properties` içinde).
 - `main`'e gönderilen her değişiklikte GitHub Actions eklentileri derleyip `builds` dalına koyar.
