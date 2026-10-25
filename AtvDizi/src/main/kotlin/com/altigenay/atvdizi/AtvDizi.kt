@@ -29,6 +29,12 @@ class AtvDizi : MainAPI() {
         "eski" to "Eski Diziler",
     )
 
+    // ATV, tarayıcı UA'sı olmayan isteklere sadeleştirilmiş sayfa döndürebilir.
+    private val basliklar = mapOf(
+        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept-Language" to "tr-TR,tr;q=0.9",
+    )
+
     private val bolumYolu = Regex("^/([a-z0-9-]+)/([0-9]+)-bolum/?$")
     private val diziKaraListe = setOf(
         "diziler", "eski-diziler", "canli-yayin", "yayin-akisi", "filmler", "programlar",
@@ -96,7 +102,7 @@ class AtvDizi : MainAPI() {
     // ------------------------------------------------------------------ katalog
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val doc = app.get(if (request.data == "son") mainUrl else "$mainUrl/${request.data}").document
+        val doc = app.get(if (request.data == "son") mainUrl else "$mainUrl/${request.data}", headers = basliklar).document
         val ogeler = when (request.data) {
             "son" -> sonBolumler(doc)
             else -> diziOgeleri(doc)
@@ -107,9 +113,9 @@ class AtvDizi : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> {
         val q = query.trim().lowercase()
         val tumu = ArrayList<SearchResponse>()
-        tumu += diziOgeleri(app.get("$mainUrl/diziler").document)
-        tumu += diziOgeleri(app.get("$mainUrl/eski-diziler").document)
-        tumu += sonBolumler(app.get(mainUrl).document)
+        tumu += diziOgeleri(app.get("$mainUrl/diziler", headers = basliklar).document)
+        tumu += diziOgeleri(app.get("$mainUrl/eski-diziler", headers = basliklar).document)
+        tumu += sonBolumler(app.get(mainUrl, headers = basliklar).document)
         return tumu.distinctBy { it.url }.filter {
             it.name.lowercase().contains(q) || it.url.lowercase().contains(q.replace(" ", "-"))
         }
@@ -119,7 +125,7 @@ class AtvDizi : MainAPI() {
 
     override suspend fun load(url: String): LoadResponse {
         val yol = runCatching { java.net.URI(url).path }.getOrDefault(url)
-        val doc = app.get(url).document
+        val doc = app.get(url, headers = basliklar).document
         val html = doc.html()
 
         // Tek bölüm sayfası: JSON-LD -> doğrudan oynatma verisi
@@ -170,7 +176,7 @@ class AtvDizi : MainAPI() {
         // data ya doğrudan MP4 (JSON-LD'den) ya da bölüm sayfası adresidir.
         var adres = data
         if (!adres.contains("/vms/") && !adres.endsWith(".mp4", true) && !adres.endsWith(".m3u8", true)) {
-            val html = app.get(adres).text
+            val html = app.get(adres, headers = basliklar).text
             val v = videoNesnesi(html) ?: return false
             adres = v.optString("contentUrl")
         }
