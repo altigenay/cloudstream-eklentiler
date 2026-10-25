@@ -23,6 +23,7 @@ Use deterministic discovery and packaging from `turkstream_studio/` in this chec
 
 ## Route the task
 
+- First diagnose the site's **architecture** (SSR HTML, SPA with embedded JSON, pure client SPA, JSON API, SSR+AJAX/Livewire, DRM streams): read [references/site-architectures.md](references/site-architectures.md) and follow the `prepare` signals (`embeddedJson`, `livewire`, `nextAssets`, `anchors`). Kaynak kuralı: yalnız resmi ve ücretsiz kaynaklar — korsan/yetkisiz siteler kapsam dışı.
 - For a new film or series site, read [references/movie-series.md](references/movie-series.md).
 - For browser Inspector/Network, lazy posters, source-button IDs, AJAX, or multi-hop iframes, read [references/browser-devtools-to-provider.md](references/browser-devtools-to-provider.md).
 - For live channels or an authorized app API, read [references/live-and-api.md](references/live-and-api.md).

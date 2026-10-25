@@ -319,10 +319,24 @@ def discover(html: str, base_url: str, limit: int = 8) -> dict:
 
     warnings: list[str] = []
     link_count = sum(1 for node in tree.iter() if node.tag == "a" and node.attr("href"))
-    if link_count < 20:
+    # Mimari tespiti (bkz. references/site-architectures.md)
+    embedded_json = [m for m in ("__NEXT_DATA__", "__NUXT__", "__INITIAL_STATE__", "__APOLLO_STATE__") if m in html]
+    livewire = "wire:snapshot" in html or "livewire" in html.lower()
+    next_assets = "/_next/static/" in html
+    if link_count < 20 and embedded_json:
+        warnings.append(
+            "gömülü JSON bulundu (" + ", ".join(embedded_json) + ") — kartlar HTML'de olmasa da "
+            "veri sayfada gömülü; references/site-architectures.md yol 2"
+        )
+    elif link_count < 20:
         warnings.append(
             "sayfada çok az bağlantı var (muhtemelen JavaScript ile çiziliyor); "
-            "tarayıcı ağ kaydıyla doğrulanmalı"
+            "references/site-architectures.md yol 3 (saf istemci SPA)"
+        )
+    if livewire:
+        warnings.append(
+            "Livewire/AJAX ipuçları var — liste SSR olabilir, arama AJAX; "
+            "references/site-architectures.md yol 5"
         )
     if not sections:
         warnings.append("tekrar eden kart bloğu bulunamadı; seçiciler elle belirlenmeli")
@@ -341,6 +355,9 @@ def discover(html: str, base_url: str, limit: int = 8) -> dict:
             "iframes": iframes,
             "mediaUrls": media_urls,
             "apiHints": api_hints,
+            "embeddedJson": embedded_json,
+            "livewire": livewire,
+            "nextAssets": next_assets,
         },
         "warnings": warnings,
         "instructions": [
