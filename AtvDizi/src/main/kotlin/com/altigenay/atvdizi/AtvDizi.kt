@@ -35,7 +35,7 @@ class AtvDizi : MainAPI() {
         "Accept-Language" to "tr-TR,tr;q=0.9",
     )
 
-    private val bolumYolu = Regex("^/([a-z0-9-]+)/([0-9]+)-bolum/?$")
+    private val bolumYolu = Regex("^/([a-z0-9-]+)/([0-9]+)-bolum/izle/?$")
 
     /** Bağlantı yolunu elle çöz (jsoup absUrl taban URI yoksa boş döner). */
     private fun yol(al: org.jsoup.nodes.Element): String? {
