@@ -36,6 +36,23 @@ class AtvDizi : MainAPI() {
     )
 
     private val bolumYolu = Regex("^/([a-z0-9-]+)/([0-9]+)-bolum/?$")
+
+    /** Bağlantı yolunu elle çöz (jsoup absUrl taban URI yoksa boş döner). */
+    private fun yol(al: org.jsoup.nodes.Element): String? {
+        val ham = al.attr("href").trim()
+        if (ham.isEmpty() || ham.startsWith("#") || ham.startsWith("javascript")) return null
+        val p = if (ham.startsWith("http")) {
+            val u = runCatching { java.net.URI(ham) }.getOrNull() ?: return null
+            val host = u.host ?: return null
+            if (!host.endsWith("atv.com.tr")) return null
+            u.path ?: return null
+        } else {
+            ham.substringBefore("?").substringBefore("#")
+        }
+        return if (p.startsWith("/")) p else "/$p"
+    }
+
+    private fun mutlak(yol: String): String = mainUrl + yol
     private val diziKaraListe = setOf(
         "diziler", "eski-diziler", "canli-yayin", "yayin-akisi", "filmler", "programlar",
         "iletisim", "uye-ol", "giris-yap", "ara", "galeri", "video", "haber", "rss",
@@ -60,7 +77,14 @@ class AtvDizi : MainAPI() {
 
     private fun gorsel(el: Element?): String? {
         val img = el?.selectFirst("img") ?: return null
-        return img.absUrl("data-src").ifBlank { img.absUrl("src") }.ifBlank { null }
+        val ham = img.attr("data-src").ifBlank { img.attr("src") }.trim()
+        return when {
+            ham.isEmpty() -> null
+            ham.startsWith("http") -> ham
+            ham.startsWith("//") -> "https:$ham"
+            ham.startsWith("/") -> mainUrl + ham
+            else -> null
+        }
     }
 
     private fun baslikTuret(slug: String, bolum: String): String =
@@ -71,14 +95,12 @@ class AtvDizi : MainAPI() {
     private fun diziOgeleri(doc: Document): List<SearchResponse> {
         val out = ArrayList<SearchResponse>()
         for (a in doc.select("a[href]")) {
-            val u = a.absUrl("href").removeSuffix("/")
-            if (u.isBlank() || !u.startsWith(mainUrl)) continue
-            val slug = u.removePrefix(mainUrl)
-            if (!slug.matches(Regex("^/[a-z0-9-]+$"))) continue
-            if (slug.removePrefix("/") in diziKaraListe) continue
+            val p = yol(a)?.removeSuffix("/") ?: continue
+            if (!p.matches(Regex("^/[a-z0-9-]+$"))) continue
+            if (p.removePrefix("/") in diziKaraListe) continue
             val ad = a.text().trim().ifBlank { a.selectFirst("img")?.attr("alt")?.trim().orEmpty() }
             if (ad.isBlank() || ad.length < 3) continue
-            out += newTvSeriesSearchResponse(ad, u, TvType.TvSeries) { posterUrl = gorsel(a) }
+            out += newTvSeriesSearchResponse(ad, mutlak(p), TvType.TvSeries) { posterUrl = gorsel(a) }
         }
         return out.distinctBy { it.url }
     }
@@ -87,14 +109,10 @@ class AtvDizi : MainAPI() {
     private fun sonBolumler(doc: Document): List<SearchResponse> {
         val out = ArrayList<SearchResponse>()
         for (a in doc.select("a[href*=/izle]")) {
-            val yol = try {
-                java.net.URI(a.absUrl("href")).path
-            } catch (_: Exception) {
-                continue
-            }
-            val m = bolumYolu.matchEntire(yol.trimEnd('/')) ?: continue
+            val p = yol(a) ?: continue
+            val m = bolumYolu.matchEntire(p.trimEnd('/')) ?: continue
             val ad = baslikTuret(m.groupValues[1], m.groupValues[2])
-            out += newMovieSearchResponse(ad, a.absUrl("href"), TvType.Movie) { posterUrl = gorsel(a) }
+            out += newMovieSearchResponse(ad, mutlak(p), TvType.Movie) { posterUrl = gorsel(a) }
         }
         return out.distinctBy { it.url }
     }
@@ -146,8 +164,9 @@ class AtvDizi : MainAPI() {
         val bolumler = ArrayList<Episode>()
         val gorulen = HashSet<String>()
         for (a in doc.select("a[href*=/izle]")) {
-            val href = a.absUrl("href")
-            val p = runCatching { java.net.URI(href).path }.getOrDefault("") .trimEnd('/')
+            val p0 = yol(a) ?: continue
+            val href = mutlak(p0)
+            val p = p0.trimEnd('/')
             val m = bolumYolu.matchEntire(p) ?: continue
             if (!gorulen.add(href)) continue
             val no = m.groupValues[2].toIntOrNull() ?: continue

@@ -1,5 +1,5 @@
 // Sürüm numarası: her değişiklikte bir artırın (CloudStream güncellemeyi buna bakarak görür)
-version = 2
+version = 3
 
 cloudstream {
     description = "ATV resmî site — yayıncının kendi dizilerinin ücretsiz bölümleri (katalog, son bölümler, bölüm listesi, doğrudan MP4)"
